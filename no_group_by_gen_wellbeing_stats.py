@@ -583,13 +583,6 @@ def create_csv():
 
       weak_tie = (weak_tie/float(sum1)) * 100
 
-      #if weak_tie == 0:
-      print "@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@@"
-      print "Bottom k"+str(bottom_k)
-      print "Sum of bootom k"+str(sum(bottom_k))
-      print sum1
-      print "Weak tie"+str(weak_tie)
-
       location_wtie[imei] = weak_tie
 
 
@@ -712,74 +705,86 @@ def create_csv():
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(call_entropy[imei]))
-        rd_2 = int(rd_2*100)
+        print "^^^^^^"
+        rd_2 = call_entropy[imei] * 100
+        print rd_2
+        rd_2 = int(round(rd_2))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(sms_entropy[imei]))
-        rd_2 = int(rd_2*100)
+        rd_2 = sms_entropy[imei] * 100
+        print rd_2
+        rd_2 = int(round(rd_2))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(location_entropy[imei]))
-        rd_2 = int(rd_2*100)
+        rd_2 = location_entropy[imei] * 100
+        print rd_2
+        rd_2 = int(round(rd_2))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(call_loyalty[imei]))
-        rd_2 = int(rd_2*100)
+        rd_2 = call_loyalty[imei] * 100
+        print rd_2
+        rd_2 = int(round(rd_2))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(sms_loyalty[imei]))
-        rd_2 = int(rd_2*100)
+        rd_2 = sms_loyalty[imei] * 100
+        print rd_2
+        rd_2 = int(round(rd_2))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(location_loyalty[imei]))
-        rd_2 = int(rd_2*100)
+        rd_2 = location_loyalty[imei] * 100
+        print rd_2
+        rd_2 = int(round(rd_2))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(call_stie[imei]))
-        rd_2 = int(rd_2)
+        print call_stie[imei]
+        rd_2 = int(round(call_stie[imei]))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(sms_stie[imei]))
-        rd_2 = int(rd_2)
+        print sms_stie[imei]
+        rd_2 = int(round(sms_stie[imei]))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(location_stie[imei]))
-        rd_2 = int(rd_2)
+        print location_stie[imei]
+        rd_2 = int(round(location_stie[imei]))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(call_wtie[imei]))
-        rd_2 = int(rd_2)
+        print call_wtie[imei]
+        rd_2 = int(round(call_wtie[imei]))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(sms_wtie[imei]))
-        rd_2 = int(rd_2)
+        #rd_2 = float("{0:.2f}".format(sms_wtie[imei]))
+        #rd_2 = int(rd_2)
+        #rd_2 = sms_wtie[imei]
+        print sms_wtie[imei]
+        rd_2 = int(round(sms_wtie[imei]))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
       try:
-        rd_2 = float("{0:.2f}".format(location_wtie[imei]))
-        rd_2 = int(rd_2)
+        #rd_2 = float("{0:.2f}".format(location_wtie[imei]))
+        #rd_2 = int(rd_2)
+        print location_wtie[imei]
+        rd_2 = int(round(location_wtie[imei]))
         row_list.append(rd_2)
       except KeyError:
         row_list.append("NA")
