@@ -12,6 +12,7 @@ import csv
 import math
 from collections import Counter
 import optparse
+import json
 
 start_time = 0
 end_time = 1432176252
@@ -56,6 +57,8 @@ shannons_location = {}
 device_imei = {}
 location_stats = {}
 location_stats_interval = {}
+call_type_csv = []
+sms_type_csv = []
 
 con = 0
 
@@ -140,7 +143,48 @@ def write_stats_to_csv():
         last_index = x[2].find(',', number_index)
         call_id = x[2][number_index:last_index-4]
         
-    
+        # code below for the distinction between the type of call and recording it
+        if record_time>start_time and record_time<end_time:
+            formatted_call_record = x[2].replace('\\','').replace('"{','{').replace('}"','}')
+
+            #print formatted_call_record
+            json_call_record = json.loads(formatted_call_record)
+            #print json_call_record['type']
+            #print json_call_record['number']['ONE_WAY_HASH']
+            call_type = json_call_record['type']
+            call_type_csv_row = []
+
+            try:
+                if call_type == 1:
+                    #Incoming Call
+                    call_type_csv_row.append(device_imei[x[0]])
+                    call_type_csv_row.append(json_call_record['number']['ONE_WAY_HASH'])
+                    call_type_csv_row.append(json_call_record['timestamp'])
+                    call_type_csv_row.append("Incoming")
+                    call_type_csv_row.append(json_call_record['duration'])
+                
+                if call_type == 2:
+                    #Outgoing Call
+                    call_type_csv_row.append(json_call_record['number']['ONE_WAY_HASH'])
+                    call_type_csv_row.append(device_imei[x[0]])
+                    call_type_csv_row.append(json_call_record['timestamp'])
+                    call_type_csv_row.append("Outgoing")
+                    call_type_csv_row.append(json_call_record['duration'])
+
+                if call_type == 3:
+                    #Missed Call
+                    call_type_csv_row.append(device_imei[x[0]])
+                    call_type_csv_row.append(json_call_record['number']['ONE_WAY_HASH'])
+                    call_type_csv_row.append(json_call_record['timestamp'])
+                    call_type_csv_row.append("Missed")
+                    call_type_csv_row.append(json_call_record['duration'])
+            
+                if len(call_type_csv_row)>0:
+                    call_type_csv.append(call_type_csv_row)
+            except KeyError:
+                pass
+
+        # code ends here
 
         try:
           distinct_calls[x[0]]
@@ -218,6 +262,8 @@ def write_stats_to_csv():
 
         print "Number of distinct users called on {} is {}".format(date,j)
 
+    #print "Call type CSV"
+    #print call_type_csv
 
 
     d = defaultdict(list)
@@ -239,7 +285,43 @@ def write_stats_to_csv():
         last_index = x[2].find(',', number_index)
         call_id = x[2][number_index:last_index-4]
         print "Device {} time {} date {} call_id {}".format(x[0],x[1],std_mtime,call_id)
-        
+       
+        # code below for the distinction between the type of call and recording it
+        if record_time>start_time and record_time<end_time:
+            formatted_sms_record = x[2].replace('\\','').replace('"{','{').replace('}"','}')
+
+            print formatted_sms_record
+            json_sms_record = json.loads(formatted_sms_record)
+            print json_sms_record['type']
+            print json_sms_record['address']['ONE_WAY_HASH']
+            sms_type = json_sms_record['type']
+            sms_type_csv_row = []
+
+            try:
+                if sms_type == 1:
+                    #Incoming Sms
+                    sms_type_csv_row.append(device_imei[x[0]])
+                    sms_type_csv_row.append(json_sms_record['address']['ONE_WAY_HASH'])
+                    sms_type_csv_row.append(json_sms_record['timestamp'])
+                    sms_type_csv_row.append("Incoming")
+                
+                if sms_type == 2:
+                    #Outgoing Sms
+                    sms_type_csv_row.append(json_sms_record['address']['ONE_WAY_HASH'])
+                    sms_type_csv_row.append(device_imei[x[0]])
+                    sms_type_csv_row.append(json_sms_record['timestamp'])
+                    sms_type_csv_row.append("Outgoing")
+
+                if len(sms_type_csv_row)>0:
+                    sms_type_csv.append(sms_type_csv_row)
+                else:
+                    print "DANGER"
+                    print sms_type
+            except KeyError:
+                pass
+
+        # code ends here
+
         try:
           distinct_sms[x[0]]
         except KeyError:
@@ -266,6 +348,7 @@ def write_stats_to_csv():
 
     #print d  
     #for row in data:
+
     print "Number of SMS for all devices on a day"
 
     for imei, value in distinct_sms.iteritems():
@@ -794,6 +877,34 @@ def create_csv():
     resultFile.close()
 
 ########################################################
+
+############### Call type csv file ######################
+
+    if len(file) > 0:
+      resultFile = open(file + "_call_type.csv",'wb')
+    else:  
+      resultFile = open("output_call_type.csv",'wb')
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerow(['To','From','Timestamp','Type','Duration'])
+    for row in call_type_csv:
+      wr.writerow(row)
+
+    resultFile.close()
+    
+    if len(file) > 0:
+      resultFile = open(file + "_sms_type.csv",'wb')
+    else:  
+      resultFile = open("output_sms_type.csv",'wb')
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerow(['To','From','Timestamp','Type'])
+    for row in sms_type_csv:
+      wr.writerow(row)
+
+    resultFile.close()
+    
+
+#########################################################
+
 
 ###########Location Stats more verbose ##################
     list_of_lists = []
