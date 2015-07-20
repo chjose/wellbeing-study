@@ -54,6 +54,7 @@ files_csv = {}
 shannons_entropy_stats = {}
 shannons_entropy_sms = {}
 shannons_location = {}
+shannons_location_update = {}
 device_imei = {}
 location_stats = {}
 location_stats_interval = {}
@@ -181,6 +182,9 @@ def write_stats_to_csv():
             
                 if len(call_type_csv_row)>0:
                     call_type_csv.append(call_type_csv_row)
+                else:
+                    print "Find the mysterious call types"
+                    print call_type
             except KeyError:
                 pass
 
@@ -475,6 +479,76 @@ def write_stats_to_csv():
           location_stats[device_imei[x[0]]][std_mtime] = []
 
         location_stats[device_imei[x[0]]][std_mtime].append(time_long_lat_list)
+
+    ########################################
+
+    # Code to get only the first location of an hour.
+    
+    list_of_lists = []
+    location_stats_interval_copy = location_stats_interval
+    first_lat_long_hour = {}
+
+    for imei, date in location_stats.iteritems():
+      for date_key, time_long_lat in date.iteritems():
+        for element in time_long_lat:
+          time_hour = element[0][:element[0].index(":")]
+          print(time_hour)
+          plus_one = int(time_hour)+1
+          if plus_one<10:
+            plus_one = "0"+str(plus_one)
+          else:
+            plus_one = str(plus_one)
+          interval_string = time_hour+":00-"+str(plus_one)+":00"
+          print interval_string
+          try:
+            if location_stats_interval_copy[imei][date_key][interval_string] == 0:
+              location_stats_interval_copy[imei][date_key][interval_string]+=1
+              ref = imei+date_key+interval_string
+              location_bin = str(element[1]) + " " + str(element[2])
+            
+              try:
+                shannons_location_update[imei]
+              except KeyError:
+                shannons_location_update[imei] = {}
+              
+              try:
+                shannons_location_update[imei][location_bin] += 1
+              except KeyError:
+                shannons_location_update[imei][location_bin] = 1
+              first_lat_long_hour[ref] = [element[1], element[2]]
+          except KeyError:
+            print "KeyError in location interval"
+            print imei
+
+    print "OUPUT!!!!!"
+
+    list_of_lists = []
+    for imei, date_1 in location_stats_interval_copy.iteritems():
+      for date_key, interval in date_1.iteritems():
+        for time_slot, freq in interval.iteritems():
+          if freq>0:
+            ref = imei+date_key+time_slot
+            row = [imei, date_key, time_slot, freq, first_lat_long_hour[ref][0], first_lat_long_hour[ref][1]]
+          else:
+            row = [imei, date_key, time_slot, freq, 0, 0]
+          #print row
+          list_of_lists.append(row)
+
+    list_of_lists.sort(key=lambda x:(x[0], x[1], x[2]))
+
+    if len(file) > 0:
+      resultFile = open(file + "_location_interval_first_location.csv",'wb')
+    else:  
+      resultFile = open("output_location_interval_first_location.csv",'wb')
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerow(['IMEI','Day','Time_slot','Frequency','Longitude','Latitude'])
+    for x in list_of_lists:
+      row = [x[0],x[1],x[2],x[3],x[4],x[5]]
+      wr.writerow(row)
+
+    resultFile.close()
+
+    ########################################
         
     for imei, value in distinct_locations.iteritems():
       for date, inner_list in value.iteritems():
@@ -534,7 +608,7 @@ def create_csv():
     table = []
 
     # Calculate the Shannon's Entropy 
-    for imei, ndict in shannons_location.iteritems():
+    for imei, ndict in shannons_location_update.iteritems():
       entropy = 0
       sum1 = sum(ndict.values())
       k = len(ndict)
@@ -579,7 +653,7 @@ def create_csv():
     #  print ndict
     
     # Calculate the Loyalty 
-    for imei, ndict in shannons_location.iteritems():
+    for imei, ndict in shannons_location_update.iteritems():
       entropy = 0
       sum1 = sum(ndict.values())
       location_count[imei] = sum1
@@ -626,7 +700,7 @@ def create_csv():
     #  print ndict
 
     print "Strong ties for locations"
-    for imei, ndict in shannons_location.iteritems():
+    for imei, ndict in shannons_location_update.iteritems():
       strong_tie = 0
       last = 0
       strong_tie_num = float(len(ndict))/3
@@ -906,6 +980,7 @@ def create_csv():
 #########################################################
 
 
+
 ###########Location Stats more verbose ##################
     list_of_lists = []
 
@@ -1009,7 +1084,9 @@ def create_csv():
           threshold_loc[imei]
         except KeyError:
           threshold_loc[imei] = {}
-        if sum_per >= 4:
+        
+        # To change the percentage for the location graph change the value below
+        if sum_per >= 75:
           threshold_loc[imei][date_key] = 1
         else:
           threshold_loc[imei][date_key] = 0
@@ -1023,6 +1100,71 @@ def create_csv():
 
     print "Graph list"
     print graph_list
+
+
+    ######## Code below to select only the final few IMEI ########
+    cherry_picked_graph_list = {}
+
+    #imei_file = open('imei_selected','r')
+
+    with open('imei_selected', 'r') as f:
+        content = f.readlines()
+
+    print "Deleting the unwanted IMEIs"
+    for ele in content:
+        ele = ele.strip('\n').strip()
+        try:
+            cherry_picked_graph_list[ele] = graph_list[ele]
+        except KeyError:
+            print "Key Error for cherry picking: "+ele
+
+
+    count_of_days = dict(Counter(cherry_picked_graph_list.values()))
+    cherry_picked_graph_list = count_of_days  
+
+    list_of_lists = []
+    for imei, date_1 in cherry_picked_graph_list.iteritems():
+      row = [imei, date_1]
+      list_of_lists.append(row)
+
+    list_of_lists.sort(key=lambda x:(x[0], x[1]))
+    if len(file) > 0:
+      resultFile = open(file + "_location_graph_freq_selected_imei.csv",'wb')
+    else:  
+      resultFile = open("output_location_graph_freq_selected_imei.csv",'wb')
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerow(['IMEI','Num of days'])
+    for x in list_of_lists:
+      row = [x[0],x[1]]
+      wr.writerow(row)
+
+    resultFile.close()
+    # Graph code ends here
+
+    list_of_lists = []
+    for imei, date_1 in location_stats_interval.iteritems():
+      for date_key, interval in date_1.iteritems():
+        for time_slot, freq in interval.iteritems():
+          row = [imei, date_key, time_slot, freq]
+          #print row
+          list_of_lists.append(row)
+
+    list_of_lists.sort(key=lambda x:(x[0], x[1], x[2]))
+
+    if len(file) > 0:
+      resultFile = open(file + "_location_graph_selected_imei.csv",'wb')
+    else:  
+      resultFile = open("output_location_graph_selected_imei.csv",'wb')
+    wr = csv.writer(resultFile, dialect='excel')
+    wr.writerow(['IMEI','Day','Time_slot','Frequency'])
+    for x in list_of_lists:
+      row = [x[0],x[1],x[2],x[3]]
+      wr.writerow(row)
+
+    resultFile.close()
+
+
+    ################################################################
 
     count_of_days = dict(Counter(graph_list.values()))
     graph_list = count_of_days  
