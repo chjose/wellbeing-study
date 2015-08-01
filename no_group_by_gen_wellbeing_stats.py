@@ -5,6 +5,7 @@ import utils
 import glob
 from time import localtime, strftime
 import datetime
+from datetime import date
 import sqlite3 as lite
 import string
 import time
@@ -60,6 +61,12 @@ location_stats = {}
 location_stats_interval = {}
 call_type_csv = []
 sms_type_csv = []
+eligible_days_call = {}
+eligible_days_sms = {}
+imei_timestamp = {}
+imei_num_timestamp = {}
+imei_smstimestamp = {}
+imei_num_smstimestamp = {}
 
 con = 0
 
@@ -501,7 +508,7 @@ def write_stats_to_csv():
           interval_string = time_hour+":00-"+str(plus_one)+":00"
           print interval_string
           try:
-            if location_stats_interval_copy[imei][date_key][interval_string] == 0:
+            if location_stats_interval_copy[imei][date_key][interval_string] == 0 and int(element[3])>start_time and int(element[3])<end_time:
               location_stats_interval_copy[imei][date_key][interval_string]+=1
               ref = imei+date_key+interval_string
               location_bin = str(element[1]) + " " + str(element[2])
@@ -581,6 +588,116 @@ def write_stats_to_csv():
 
         files_csv[imei][date]["Distinct Locations"] = j
         print "Distinct locations on {} is {}".format(date,j)
+    
+    #### Code to add the first call log date and number of days of good call
+
+    cur = con.cursor()
+    cur.execute("PRAGMA temp_store = 2")
+
+
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Call%'""")
+
+    for d in data:
+      imei_num_timestamp[d[0]] = []
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Call%'""")
+
+    for d in data:
+      if time.strftime('%Y-%m-%d', time.localtime(d[1])) > '2015-02-11' and time.strftime('%Y-%m-%d', time.localtime(d[1])) < '2015-04-27':
+        imei_num_timestamp[d[0]].append(time.strftime('%Y-%m-%d', time.localtime(d[1])))
+
+    #print imei_num_timestamp
+    for imei,timestamp in imei_num_timestamp.iteritems():
+      imei_num_timestamp[imei] = len(set(imei_num_timestamp[imei]))
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Call%'""")
+
+    for d in data:
+      print d
+      imei_timestamp[d[0]] = 222222222222222
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Call%'""")
+    for d in data:
+      #print "dfdfd"
+      if imei_timestamp[d[0]]>d[1]:
+        imei_timestamp[d[0]] = d[1]
+
+    for imei,timestamp in imei_timestamp.iteritems():
+      imei_timestamp[imei] = time.strftime('%Y-%m-%d', time.localtime(timestamp))
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Sms%'""")
+
+    for d in data:
+      imei_num_smstimestamp[d[0]] = []
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Sms%'""")
+
+    for d in data:
+      if time.strftime('%Y-%m-%d', time.localtime(d[1])) > '2015-02-11' and time.strftime('%Y-%m-%d', time.localtime(d[1])) < '2015-04-27':
+        imei_num_smstimestamp[d[0]].append(time.strftime('%Y-%m-%d', time.localtime(d[1])))
+
+    #print imei_num_timestamp
+    for imei,timestamp in imei_num_smstimestamp.iteritems():
+      imei_num_smstimestamp[imei] = len(set(imei_num_smstimestamp[imei]))
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Sms%'""")
+
+    for d in data:
+      print d
+      imei_smstimestamp[d[0]] = 222222222222222
+
+    cur = con.cursor()
+    data = cur.execute("""select imei,timestamp from data
+                          where probe like '%Sms%'""")
+    for d in data:
+      #print "dfdfd"
+      if imei_smstimestamp[d[0]]>d[1]:
+        imei_smstimestamp[d[0]] = d[1]
+
+    for imei,timestamp in imei_smstimestamp.iteritems():
+      imei_smstimestamp[imei] = time.strftime('%Y-%m-%d', time.localtime(timestamp))
+    
+    for imei,date1 in imei_smstimestamp.iteritems():
+      mdate = "2015-02-12"
+      mdate1 = datetime.datetime.strptime(mdate, "%Y-%m-%d")
+
+      #d = time.strftime('%Y-%m-%d', time.localtime(int(date1)))
+      d = datetime.datetime.strptime(date1, "%Y-%m-%d")
+
+      if d<mdate1:
+        eligible_days_sms[imei] = 74
+      else:
+        rdate = "2015-04-27"
+        rdate1 = datetime.datetime.strptime(rdate, "%Y-%m-%d")
+        eligible_days_sms[imei] = (rdate1 - d).days
+
+    for imei,date1 in imei_timestamp.iteritems():
+      mdate = "2015-02-12"
+      mdate1 = datetime.datetime.strptime(mdate, "%Y-%m-%d")
+
+      #d = time.strftime('%Y-%m-%d', time.localtime(int(date1)))
+      d = datetime.datetime.strptime(date1, "%Y-%m-%d")
+
+      if d<mdate1:
+        eligible_days_call[imei] = 74
+      else:
+        rdate = "2015-04-27"
+        rdate1 = datetime.datetime.strptime(rdate, "%Y-%m-%d")
+        eligible_days_call[imei] = (rdate1 - d).days
+    #### Code Ends here
 
 def create_csv():
 
@@ -602,6 +719,7 @@ def create_csv():
     sms_wtie = {}
     
     location_count = {}
+    location_unique_count = {}
     call_count = {}
     sms_count = {}
     
@@ -656,6 +774,10 @@ def create_csv():
     for imei, ndict in shannons_location_update.iteritems():
       entropy = 0
       sum1 = sum(ndict.values())
+      unique_locations = list(ndict.keys())
+      unique_locations_set = set(unique_locations)
+
+      location_unique_count[imei] = len(unique_locations_set)
       location_count[imei] = sum1
       top_3 = dict(Counter(ndict).most_common(3))
       #print top_3
@@ -844,11 +966,14 @@ def create_csv():
     else:  
       resultFile = open("output_entropy.csv",'wb')
     wr = csv.writer(resultFile, dialect='excel')
-    wr.writerow(['IMEI','Call Count','Sms Count','Location Count','Call Entropy','Sms Entropy','Location Entropy','Call Loyalty','Sms Loyalty','Location Loyalty','Call Strong ties','Sms Strong ties','Location Strong ties','Call Weak ties','Sms Weak ties','Location Weak ties'])
+    wr.writerow(['IMEI','Call Count','Sms Count','Location Count','Unique location count','First Call log date','Days with call data','Number of days in which call data is spread','Number of calls per day','First Sms log date','Days with Sms data','Number of days in which sms data is spread','Number of Sms per day','Call Entropy','Sms Entropy','Location Entropy','Call Loyalty','Sms Loyalty','Location Loyalty','Call Strong ties','Sms Strong ties','Location Strong ties','Call Weak ties','Sms Weak ties','Location Weak ties'])
     imei_list = list(set(device_imei.values()))
     for imei in imei_list:
       row_list = []
       row_list.append(imei)
+      if imei.find("androidId")>0:
+        continue
+
       try:
         row_list.append(call_count[imei])
       except KeyError:
@@ -859,6 +984,42 @@ def create_csv():
         row_list.append("NA")
       try:
         row_list.append(location_count[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(location_unique_count[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(imei_timestamp[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(imei_num_timestamp[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(eligible_days_call[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(int(call_count[imei]/eligible_days_call[imei]))
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(imei_smstimestamp[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(imei_num_smstimestamp[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(eligible_days_sms[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(int(sms_count[imei]/eligible_days_sms[imei]))
       except KeyError:
         row_list.append("NA")
       try:
@@ -950,6 +1111,18 @@ def create_csv():
 
     resultFile.close()
 
+    if len(file) > 0:
+      resultFile = open(file + "_imei_list.csv",'wb')
+    else:  
+      resultFile = open("output_imei_list.csv",'wb')
+    wr = csv.writer(resultFile, dialect='excel')
+    imei_list = list(set(device_imei.values()))
+    for imei in imei_list:
+      row_list = []
+      row_list.append(imei)
+      wr.writerow(row_list)
+
+    resultFile.close()
 ########################################################
 
 ############### Call type csv file ######################
