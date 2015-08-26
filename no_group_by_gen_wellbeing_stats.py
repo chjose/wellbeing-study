@@ -56,6 +56,7 @@ shannons_entropy_stats = {}
 shannons_entropy_sms = {}
 shannons_location = {}
 shannons_location_update = {}
+day_night_location_ratio = {}
 device_imei = {}
 location_stats = {}
 location_stats_interval = {}
@@ -515,13 +516,34 @@ def write_stats_to_csv():
             
               try:
                 shannons_location_update[imei]
+                day_night_location_ratio[imei]
               except KeyError:
                 shannons_location_update[imei] = {}
+                day_night_location_ratio[imei] = {}
               
               try:
                 shannons_location_update[imei][location_bin] += 1
               except KeyError:
                 shannons_location_update[imei][location_bin] = 1
+
+              if element[0]>"18:00" and element[0]<"6:00":
+                try:
+                  day_night_location_ratio[imei]["NIGHT"]
+                except:
+                  day_night_location_ratio[imei]["NIGHT"] = {}
+                try:
+                  day_night_location_ratio[imei]["NIGHT"][location_bin] += 1
+                except KeyError:
+                  day_night_location_ratio[imei]["NIGHT"][location_bin] = 1
+              else:
+                try:
+                  day_night_location_ratio[imei]["DAY"]
+                except:
+                  day_night_location_ratio[imei]["DAY"] = {}
+                try:
+                  day_night_location_ratio[imei]["DAY"][location_bin] += 1
+                except KeyError:
+                  day_night_location_ratio[imei]["DAY"][location_bin] = 1
               first_lat_long_hour[ref] = [element[1], element[2]]
           except KeyError:
             print "KeyError in location interval"
@@ -709,20 +731,28 @@ def create_csv():
     location_loyalty = {}
     call_loyalty = {}
     sms_loyalty = {}
+    home_work_ratio = {}
     
     location_stie = {}
     call_stie = {}
     sms_stie = {}
+    location_stie_value = {}
+    call_stie_value = {}
+    sms_stie_value = {}
     
     location_wtie = {}
     call_wtie = {}
     sms_wtie = {}
+    location_wtie_value = {}
+    call_wtie_value = {}
+    sms_wtie_value = {}
     
     location_count = {}
     location_unique_count = {}
     call_count = {}
     sms_count = {}
-    
+    day_night_ratio_location_value = {}
+
     table = []
 
     # Calculate the Shannon's Entropy 
@@ -787,6 +817,18 @@ def create_csv():
           entropy += p_x
       location_loyalty[imei] = entropy
 
+    # Calculate the Day/night location ratio
+    day_count = 0
+    night_count = 0
+    print day_night_location_ratio
+    for imei, time_of_day in day_night_location_ratio.iteritems():
+      for time, location_string in time_of_day.iteritems():
+        if time=="DAY":
+          day_count = len(location_string)
+        else:
+          night_count = len(location_string)
+      day_night_ratio_location_value[imei]= float("{0:.2f}".format(float(day_count)/float(night_count)))
+    
     #print "LOYALTY FOR LOCATION" 
     #for imei, ndict in location_loyalty.iteritems():
     #  print ndict
@@ -834,11 +876,19 @@ def create_csv():
       else:
         pick_k = int(strong_tie_num)
 
+      top_2 = dict(Counter(ndict).most_common(2))
+      value = 0;
+      top_2_list = top_2.values()
+      print top_2_list
+      try:
+        if top_2_list[0]>top_2_list[1]:
+          home_work_ratio[imei] = float("{0:.2f}".format(float(top_2_list[0])/float(top_2_list[1])))
+        else:
+          home_work_ratio[imei] = float("{0:.2f}".format(float(top_2_list[1])/float(top_2_list[0])))
+      except:
+         home_work_ratio[imei] = "NA"
       top_k = dict(Counter(ndict).most_common(pick_k))
       bottom_k = sorted(ndict.values())[:pick_k]
-      #print "Top k"+str(top_k)
-      #print "Bottom k"+str(bottom_k)
-      #print top_3
       for location_bin, count in top_k.iteritems():
         strong_tie += count
         last = count
@@ -849,6 +899,7 @@ def create_csv():
         strong_tie -= last
         strong_tie += float(last)*fraction
 
+      location_stie_value[imei] = strong_tie
       #print "Strong tie value above"+str(strong_tie)
       strong_tie = (strong_tie/float(sum1)) * 100
       #print "Strong tie"+str(strong_tie)
@@ -860,6 +911,7 @@ def create_csv():
         weak_tie -= bottom_k[pick_k-1]
         weak_tie += float(bottom_k[pick_k-1])*fraction
 
+      location_wtie_value[imei] = weak_tie
       weak_tie = (weak_tie/float(sum1)) * 100
 
       location_wtie[imei] = weak_tie
@@ -896,8 +948,9 @@ def create_csv():
         strong_tie -= last
         strong_tie += float(last)*fraction
 
+      call_stie_value[imei] = strong_tie
       strong_tie = (strong_tie/float(sum1)) * 100
-      print strong_tie
+      #print strong_tie
 
       call_stie[imei] = strong_tie
       weak_tie = sum(bottom_k)
@@ -905,8 +958,9 @@ def create_csv():
         weak_tie -= bottom_k[pick_k-1]
         weak_tie += float(bottom_k[pick_k-1])*fraction
 
+      call_wtie_value[imei] = weak_tie
       weak_tie = (weak_tie/float(sum1)) * 100
-      print weak_tie
+      #print weak_tie
 
       call_wtie[imei] = weak_tie
 
@@ -942,6 +996,7 @@ def create_csv():
         strong_tie -= last
         strong_tie += float(last)*fraction
 
+      sms_stie_value[imei] = strong_tie
       strong_tie = (strong_tie/float(sum1)) * 100
       print strong_tie
 
@@ -952,6 +1007,7 @@ def create_csv():
         weak_tie -= bottom_k[pick_k-1]
         weak_tie += float(bottom_k[pick_k-1])*fraction
 
+      sms_wtie_value[imei] = weak_tie
       weak_tie = (weak_tie/float(sum1)) * 100
       print weak_tie
 
@@ -966,7 +1022,7 @@ def create_csv():
     else:  
       resultFile = open("output_entropy.csv",'wb')
     wr = csv.writer(resultFile, dialect='excel')
-    wr.writerow(['IMEI','Call Count','Sms Count','Location Count','Unique location count','First Call log date','Days with call data','Number of days in which call data is spread','Number of calls per day','First Sms log date','Days with Sms data','Number of days in which sms data is spread','Number of Sms per day','Call Entropy','Sms Entropy','Location Entropy','Call Loyalty','Sms Loyalty','Location Loyalty','Call Strong ties','Sms Strong ties','Location Strong ties','Call Weak ties','Sms Weak ties','Location Weak ties'])
+    wr.writerow(['IMEI','Call Count','Sms Count','Location Count','Unique location count','Day night location ratio','First Call log date','Days with call data','Number of days in which call data is spread','Number of calls per day','First Sms log date','Days with Sms data','Number of days in which sms data is spread','Number of Sms per day','Call Entropy','Sms Entropy','Location Entropy','Call Loyalty','Sms Loyalty','Location Loyalty','Call Strong ties','Sms Strong ties','Location Strong ties','Call Weak ties','Sms Weak ties','Location Weak ties','Call Strong ties value','Sms Strong ties value','Location Strong ties value','Call Weak ties value','Sms Weak ties value','Location Weak ties value','Home Work Ratio'])
     imei_list = list(set(device_imei.values()))
     for imei in imei_list:
       row_list = []
@@ -988,6 +1044,10 @@ def create_csv():
         row_list.append("NA")
       try:
         row_list.append(location_unique_count[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(day_night_ratio_location_value[imei])
       except KeyError:
         row_list.append("NA")
       try:
@@ -1104,6 +1164,40 @@ def create_csv():
         print location_wtie[imei]
         rd_2 = int(round(location_wtie[imei]))
         row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        rd_2 = int(round(call_stie_value[imei]))
+        row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        rd_2 = int(round(sms_stie_value[imei]))
+        row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        rd_2 = int(round(location_stie_value[imei]))
+        row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        rd_2 = int(round(call_wtie_value[imei]))
+        row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        rd_2 = int(round(sms_wtie_value[imei]))
+        row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        rd_2 = int(round(location_wtie_value[imei]))
+        row_list.append(rd_2)
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(home_work_ratio[imei])
       except KeyError:
         row_list.append("NA")
           
