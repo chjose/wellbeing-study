@@ -57,6 +57,9 @@ shannons_entropy_sms = {}
 shannons_location = {}
 shannons_location_update = {}
 day_night_location_ratio = {}
+weekday_weekend_location_ratio = {}
+weekday_weekend_call_ratio = {}
+weekday_weekend_sms_ratio = {}
 device_imei = {}
 location_stats = {}
 location_stats_interval = {}
@@ -68,6 +71,29 @@ imei_timestamp = {}
 imei_num_timestamp = {}
 imei_smstimestamp = {}
 imei_num_smstimestamp = {}
+
+#New attributes
+distinct_contacts = defaultdict(list)
+distinct_contacts_sms = defaultdict(list)
+call_duration_total = {}
+incoming_call_count = {}
+outgoing_call_count = {}
+missed_call_count = {}
+incoming_sms_count = {}
+outgoing_sms_count = {}
+day_night_call_ratio = {}
+day_night_sms_ratio = {}
+first_contacts_call = set()
+second_contacts_call = set()
+new_contacts_call = set()
+first_contacts_sms = set()
+second_contacts_sms = set()
+new_contacts_sms = set()
+first_location = set()
+second_location = set()
+new_location = set()
+
+
 
 con = 0
 
@@ -147,6 +173,7 @@ def write_stats_to_csv():
     for x in data:
         std_mtime = time.strftime('%Y-%m-%d', time.localtime(x[1]))
         record_time = int(x[1])
+        time_of_the_day = time.strftime('%H:%M', time.localtime(x[1]))
         
         number_index = x[2].find('"number"')
         last_index = x[2].find(',', number_index)
@@ -171,6 +198,10 @@ def write_stats_to_csv():
                     call_type_csv_row.append(json_call_record['timestamp'])
                     call_type_csv_row.append("Incoming")
                     call_type_csv_row.append(json_call_record['duration'])
+                    if incoming_call_count.has_key(device_imei[x[0]]):
+                        incoming_call_count[device_imei[x[0]]] += 1
+                    else:
+                        incoming_call_count[device_imei[x[0]]] = 1
                 
                 if call_type == 2:
                     #Outgoing Call
@@ -179,6 +210,10 @@ def write_stats_to_csv():
                     call_type_csv_row.append(json_call_record['timestamp'])
                     call_type_csv_row.append("Outgoing")
                     call_type_csv_row.append(json_call_record['duration'])
+                    if outgoing_call_count.has_key(device_imei[x[0]]):
+                        outgoing_call_count[device_imei[x[0]]] += 1
+                    else:
+                        outgoing_call_count[device_imei[x[0]]] = 1
 
                 if call_type == 3:
                     #Missed Call
@@ -187,6 +222,10 @@ def write_stats_to_csv():
                     call_type_csv_row.append(json_call_record['timestamp'])
                     call_type_csv_row.append("Missed")
                     call_type_csv_row.append(json_call_record['duration'])
+                    if missed_call_count.has_key(device_imei[x[0]]):
+                        missed_call_count[device_imei[x[0]]] += 1
+                    else:
+                        missed_call_count[device_imei[x[0]]] = 1
             
                 if len(call_type_csv_row)>0:
                     call_type_csv.append(call_type_csv_row)
@@ -197,7 +236,6 @@ def write_stats_to_csv():
                 pass
 
         # code ends here
-
         try:
           distinct_calls[x[0]]
         except KeyError:
@@ -221,7 +259,7 @@ def write_stats_to_csv():
           call_duration[x[0]][std_mtime] += int(duration_str)
 
         if record_time>start_time and record_time<end_time:
-          
+          date_time = datetime.datetime.strptime(std_mtime,'%Y-%m-%d') 
           try:
             device_imei[x[0]]
           except KeyError:
@@ -231,14 +269,58 @@ def write_stats_to_csv():
           try:
             shannons_entropy_stats[device_imei[x[0]]]
           except KeyError:
+            call_duration_total[device_imei[x[0]]] = 0
             shannons_entropy_stats[device_imei[x[0]]] = {}
-        
+            day_night_call_ratio[device_imei[x[0]]] = {}
+            weekday_weekend_call_ratio[device_imei[x[0]]] = {}
+       
           try:
             shannons_entropy_stats[device_imei[x[0]]][call_id] += 1
           except KeyError:
             shannons_entropy_stats[device_imei[x[0]]][call_id] = 1
+
+          # Get the first two weeks contact, comparison date is 3-20-2015
+          if record_time<1426824000:
+            first_contacts_call.add(call_id)
+          else:
+            second_contacts_call.add(call_id)
+            
+          if date_time.weekday()==5 or date_time.weekday()==6:
+            try:
+              weekday_weekend_call_ratio[device_imei[x[0]]]["weekend"] += 1
+            except KeyError:
+              weekday_weekend_call_ratio[device_imei[x[0]]]["weekend"] = 1
+          else:
+            try:
+              weekday_weekend_call_ratio[device_imei[x[0]]]["weekday"] += 1
+            except KeyError:
+              weekday_weekend_call_ratio[device_imei[x[0]]]["weekday"] = 1
+
+          #Distinct contacts
+          distinct_contacts[device_imei[x[0]]].append(call_id)
+
+          call_duration_total[device_imei[x[0]]] += int(duration_str)
+          if time_of_the_day>"18:00" and time_of_the_day<"6:00":
+            try:
+              day_night_call_ratio[device_imei[x[0]]]["NIGHT"] += 1
+            except:
+              day_night_call_ratio[device_imei[x[0]]]["NIGHT"] = 1
+          else:
+            try:
+              day_night_call_ratio[device_imei[x[0]]]["DAY"] += 1
+            except:
+              day_night_call_ratio[device_imei[x[0]]]["DAY"] = 1
+            
     #print d  
     #for row in data:
+
+    print "Test printing the old and new contacts"
+    print first_contacts_call
+    print "%%%%%%%%%%"
+    print second_contacts_call
+    print len(first_contacts_call)
+    print len(second_contacts_call)
+    exit()
     print "Number of calls for the all the devices on a day"
     
     for imei, value in distinct_calls.iteritems():
@@ -291,6 +373,7 @@ def write_stats_to_csv():
     for x in data:
         std_mtime = time.strftime('%Y-%m-%d', time.localtime(x[1]))
         d[x[0]].append(std_mtime)
+        time_of_the_day = time.strftime('%H:%M', time.localtime(x[1]))
         record_time = int(x[1])
         
         number_index = x[2].find('"address"')
@@ -310,12 +393,20 @@ def write_stats_to_csv():
             sms_type_csv_row = []
 
             try:
+                device_imei[x[0]]
+            except KeyError:
+                device_imei[x[0]] = x[0]
+            try:
                 if sms_type == 1:
                     #Incoming Sms
                     sms_type_csv_row.append(device_imei[x[0]])
                     sms_type_csv_row.append(json_sms_record['address']['ONE_WAY_HASH'])
                     sms_type_csv_row.append(json_sms_record['timestamp'])
                     sms_type_csv_row.append("Incoming")
+                    if incoming_sms_count.has_key(device_imei[x[0]]):
+                        incoming_sms_count[device_imei[x[0]]] += 1
+                    else:
+                        incoming_sms_count[device_imei[x[0]]] = 1
                 
                 if sms_type == 2:
                     #Outgoing Sms
@@ -323,6 +414,10 @@ def write_stats_to_csv():
                     sms_type_csv_row.append(device_imei[x[0]])
                     sms_type_csv_row.append(json_sms_record['timestamp'])
                     sms_type_csv_row.append("Outgoing")
+                    if outgoing_sms_count.has_key(device_imei[x[0]]):
+                        outgoing_sms_count[device_imei[x[0]]] += 1
+                    else:
+                        outgoing_sms_count[device_imei[x[0]]] = 1
 
                 if len(sms_type_csv_row)>0:
                     sms_type_csv.append(sms_type_csv_row)
@@ -342,6 +437,7 @@ def write_stats_to_csv():
         distinct_sms[x[0]][std_mtime].append(call_id)
         
         if record_time>start_time and record_time<end_time:
+          date_time = datetime.datetime.strptime(std_mtime,'%Y-%m-%d') 
           try:
             device_imei[x[0]]
           except KeyError:
@@ -352,11 +448,39 @@ def write_stats_to_csv():
             shannons_entropy_sms[device_imei[x[0]]]
           except KeyError:
             shannons_entropy_sms[device_imei[x[0]]] = {}
+            day_night_sms_ratio[device_imei[x[0]]] = {}
+            weekday_weekend_sms_ratio[device_imei[x[0]]] = {}
           
           try:
             shannons_entropy_sms[device_imei[x[0]]][call_id] += 1
           except KeyError:
             shannons_entropy_sms[device_imei[x[0]]][call_id] = 1
+          
+          #Distinct contacts
+          distinct_contacts_sms[device_imei[x[0]]].append(call_id)
+          
+          if date_time.weekday()==5 or date_time.weekday()==6:
+            try:
+              weekday_weekend_sms_ratio[device_imei[x[0]]]["weekend"] += 1
+            except KeyError:
+              weekday_weekend_sms_ratio[device_imei[x[0]]]["weekend"] = 1
+          else:
+            try:
+              weekday_weekend_sms_ratio[device_imei[x[0]]]["weekday"] += 1
+            except KeyError:
+              weekday_weekend_sms_ratio[device_imei[x[0]]]["weekday"] = 1
+          
+          if time_of_the_day>"18:00" and time_of_the_day<"6:00":
+            try:
+              day_night_sms_ratio[device_imei[x[0]]]["NIGHT"] += 1
+            except:
+              day_night_sms_ratio[device_imei[x[0]]]["NIGHT"] = 1
+          else:
+            try:
+              day_night_sms_ratio[device_imei[x[0]]]["DAY"] += 1
+            except:
+              day_night_sms_ratio[device_imei[x[0]]]["DAY"] = 1
+            
 
     #print d  
     #for row in data:
@@ -732,6 +856,7 @@ def create_csv():
     call_loyalty = {}
     sms_loyalty = {}
     home_work_ratio = {}
+    location_percentage_time_spent = {}
     
     location_stie = {}
     call_stie = {}
@@ -752,7 +877,22 @@ def create_csv():
     call_count = {}
     sms_count = {}
     day_night_ratio_location_value = {}
+    day_night_ratio_call_value = {}
+    day_night_ratio_sms_value = {}
 
+    distinct_contacts_count = {}
+    distinct_contacts_sms_count = {}
+    number_of_strong_ties_location = {}
+    number_of_strong_ties_call= {}
+    number_of_strong_ties_sms = {}
+    inout_ratio_call = {}
+    inout_ratio_sms = {}
+    response_rate = {}
+    missed_call_rate = {}
+    weekday_weekend_ratio_location_value = {}
+    weekday_weekend_ratio_call_value = {}
+    weekday_weekend_ratio_sms_value = {}
+    
     table = []
 
     # Calculate the Shannon's Entropy 
@@ -817,6 +957,17 @@ def create_csv():
           entropy += p_x
       location_loyalty[imei] = entropy
 
+    # Calculate the Percentage of the time spent 
+    for imei, ndict in shannons_location_update.iteritems():
+      entropy = 0
+      sum1 = sum(ndict.values())
+      top_1 = dict(Counter(ndict).most_common(1))
+      #print top_3
+      for location_bin, count in top_1.iteritems():
+        percent = (float(count)/sum1)*100
+        
+      location_percentage_time_spent[imei] = float("{0:.2f}".format(percent))
+    
     # Calculate the Day/night location ratio
     day_count = 0
     night_count = 0
@@ -843,6 +994,13 @@ def create_csv():
         if p_x > 0:
           entropy += p_x
       call_loyalty[imei] = entropy
+      #calculate the number of contacts here
+      distinct_contacts_count[imei] = len(set(distinct_contacts[imei]))
+      inout_ratio_call[imei] = (float(incoming_call_count[imei])/outgoing_call_count[imei])*100
+      response_rate[imei] = (float(incoming_call_count[imei])/(call_count[imei]-outgoing_call_count[imei]))*100
+      missed_call_rate[imei] = (float(missed_call_count[imei])/call_count[imei])*100
+      day_night_ratio_call_value[imei]= float("{0:.2f}".format(float(day_night_call_ratio[imei]["DAY"])/float(day_night_call_ratio[imei]["NIGHT"])))
+      weekday_weekend_ratio_call_value[imei]= float("{0:.2f}".format(float(weekday_weekend_call_ratio[imei]["weekday"])/float(weekday_weekend_call_ratio[imei]["weekend"])))
 
     #print "LOYALTY FOR CALL" 
     #for imei, ndict in call_loyalty.iteritems():
@@ -858,7 +1016,13 @@ def create_csv():
         if p_x > 0:
           entropy += p_x
       sms_loyalty[imei] = entropy
-
+      distinct_contacts_sms_count[imei] = len(set(distinct_contacts_sms[imei]))
+      try:  
+        inout_ratio_sms[imei] = (float(incoming_sms_count[imei])/outgoing_sms_count[imei])*100
+      except KeyError:
+        pass
+      day_night_ratio_sms_value[imei]= float("{0:.2f}".format(float(day_night_sms_ratio[imei]["DAY"])/float(day_night_sms_ratio[imei]["NIGHT"])))
+      weekday_weekend_ratio_sms_value[imei]= float("{0:.2f}".format(float(weekday_weekend_sms_ratio[imei]["weekday"])/float(weekday_weekend_sms_ratio[imei]["weekend"])))
     #print "LOYALTY FOR SMS" 
     #for imei, ndict in sms_loyalty.iteritems():
     #  print ndict
@@ -876,6 +1040,8 @@ def create_csv():
       else:
         pick_k = int(strong_tie_num)
 
+      number_of_strong_ties_location[imei] = pick_k
+      
       top_2 = dict(Counter(ndict).most_common(2))
       value = 0;
       top_2_list = top_2.values()
@@ -935,6 +1101,9 @@ def create_csv():
         pick_k = int(strong_tie_num)
 
       print pick_k
+
+      number_of_strong_ties_call[imei] = pick_k
+
       top_k = dict(Counter(ndict).most_common(pick_k))
       bottom_k = sorted(ndict.values())[:pick_k]
       #print top_3
@@ -981,6 +1150,8 @@ def create_csv():
         pick_k = int(strong_tie_num) + 1
       else:
         pick_k = int(strong_tie_num)
+      
+      number_of_strong_ties_sms[imei] = pick_k
 
       print pick_k
       top_k = dict(Counter(ndict).most_common(pick_k))
@@ -1022,7 +1193,7 @@ def create_csv():
     else:  
       resultFile = open("output_entropy.csv",'wb')
     wr = csv.writer(resultFile, dialect='excel')
-    wr.writerow(['IMEI','Call Count','Sms Count','Location Count','Unique location count','Day night location ratio','First Call log date','Days with call data','Number of days in which call data is spread','Number of calls per day','First Sms log date','Days with Sms data','Number of days in which sms data is spread','Number of Sms per day','Call Entropy','Sms Entropy','Location Entropy','Call Loyalty','Sms Loyalty','Location Loyalty','Call Strong ties','Sms Strong ties','Location Strong ties','Call Weak ties','Sms Weak ties','Location Weak ties','Call Strong ties value','Sms Strong ties value','Location Strong ties value','Call Weak ties value','Sms Weak ties value','Location Weak ties value','Home Work Ratio'])
+    wr.writerow(['IMEI','Call Count','Sms Count','Location Count','Unique location count','Day night location ratio','Percentage of time spent in a location','First Call log date','Days with call data','Number of days in which call data is spread','Number of calls per day','Distinct users call','Total Call duration','In-Out ratio','Call Response rate','Missed call percentage','First Sms log date','Days with Sms data','Number of days in which sms data is spread','Number of Sms per day','Distinct users sms','Inout ratio SMS','Call Entropy','Sms Entropy','Location Entropy','Call Loyalty','Sms Loyalty','Location Loyalty','Call Strong ties','Sms Strong ties','Location Strong ties','Call Weak ties','Sms Weak ties','Location Weak ties','Call Strong ties value','Sms Strong ties value','Location Strong ties value','Call Weak ties value','Sms Weak ties value','Location Weak ties value','Call S/W ties count','Sms S/W ties count','Location S/W ties count','Home Work Ratio','Day night Call ratio','Day night sms ratio','Weekday weekend call ratio','Weekday weekend SMS ratio'])
     imei_list = list(set(device_imei.values()))
     for imei in imei_list:
       row_list = []
@@ -1051,6 +1222,10 @@ def create_csv():
       except KeyError:
         row_list.append("NA")
       try:
+        row_list.append(location_percentage_time_spent[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
         row_list.append(imei_timestamp[imei])
       except KeyError:
         row_list.append("NA")
@@ -1067,6 +1242,26 @@ def create_csv():
       except KeyError:
         row_list.append("NA")
       try:
+        row_list.append(distinct_contacts_count[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(call_duration_total[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(inout_ratio_call[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(response_rate[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(missed_call_rate[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
         row_list.append(imei_smstimestamp[imei])
       except KeyError:
         row_list.append("NA")
@@ -1080,6 +1275,14 @@ def create_csv():
         row_list.append("NA")
       try:
         row_list.append(int(sms_count[imei]/eligible_days_sms[imei]))
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(distinct_contacts_sms_count[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(inout_ratio_sms[imei])
       except KeyError:
         row_list.append("NA")
       try:
@@ -1197,7 +1400,35 @@ def create_csv():
       except KeyError:
         row_list.append("NA")
       try:
+        row_list.append(number_of_strong_ties_call[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(number_of_strong_ties_sms[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(number_of_strong_ties_location[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
         row_list.append(home_work_ratio[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(day_night_ratio_call_value[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(day_night_ratio_sms_value[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(weekday_weekend_ratio_call_value[imei])
+      except KeyError:
+        row_list.append("NA")
+      try:
+        row_list.append(weekday_weekend_ratio_sms_value[imei])
       except KeyError:
         row_list.append("NA")
           
