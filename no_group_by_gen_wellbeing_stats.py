@@ -83,15 +83,16 @@ incoming_sms_count = {}
 outgoing_sms_count = {}
 day_night_call_ratio = {}
 day_night_sms_ratio = {}
-first_contacts_call = set()
-second_contacts_call = set()
-new_contacts_call = set()
-first_contacts_sms = set()
-second_contacts_sms = set()
-new_contacts_sms = set()
-first_location = set()
-second_location = set()
-new_location = set()
+
+first_contacts_call = {}
+second_contacts_call = {}
+new_contacts_call = {}
+first_contacts_sms = {}
+second_contacts_sms = {}
+new_contacts_sms = {}
+first_location = {}
+second_location = {}
+new_location = {}
 
 
 
@@ -273,6 +274,9 @@ def write_stats_to_csv():
             shannons_entropy_stats[device_imei[x[0]]] = {}
             day_night_call_ratio[device_imei[x[0]]] = {}
             weekday_weekend_call_ratio[device_imei[x[0]]] = {}
+            first_contacts_call[device_imei[x[0]]] = set()
+            second_contacts_call[device_imei[x[0]]] = set()
+            new_contacts_call[device_imei[x[0]]] = set()
        
           try:
             shannons_entropy_stats[device_imei[x[0]]][call_id] += 1
@@ -281,9 +285,9 @@ def write_stats_to_csv():
 
           # Get the first two weeks contact, comparison date is 3-20-2015
           if record_time<1426824000:
-            first_contacts_call.add(call_id)
+            first_contacts_call[device_imei[x[0]]].add(call_id)
           else:
-            second_contacts_call.add(call_id)
+            second_contacts_call[device_imei[x[0]]].add(call_id)
             
           if date_time.weekday()==5 or date_time.weekday()==6:
             try:
@@ -314,13 +318,6 @@ def write_stats_to_csv():
     #print d  
     #for row in data:
 
-    print "Test printing the old and new contacts"
-    print first_contacts_call
-    print "%%%%%%%%%%"
-    print second_contacts_call
-    print len(first_contacts_call)
-    print len(second_contacts_call)
-    exit()
     print "Number of calls for the all the devices on a day"
     
     for imei, value in distinct_calls.iteritems():
@@ -1201,6 +1198,11 @@ def create_csv():
       if imei.find("androidId")>0:
         continue
 
+
+      
+      new_contacts_call[imei] = second_contacts_call[imei] - first_contacts_call[imei]
+      print len(new_contacts_call)
+      #exit()
       try:
         row_list.append(call_count[imei])
       except KeyError:
